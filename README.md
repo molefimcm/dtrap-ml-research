@@ -1,4 +1,4 @@
-# DTRAP ML Research — Cyber Threat Prediction with Machine Learning for Linux Systems
+# DTRAP ML Research: Cyber Threat Prediction with Machine Learning for Linux Systems
 
 Code and data accompanying the manuscript *"Evaluating Cyber Threat
 Prediction with Machine Learning for Linux Systems"* (submitted to ACM
@@ -101,7 +101,3 @@ REPRO_NOTES.md                    Full provenance record for every number in the
 
 If you use this code or dataset, please cite the manuscript (citation details
 to be added on acceptance).
-
-## License
-
-MIT — see `LICENSE`.
