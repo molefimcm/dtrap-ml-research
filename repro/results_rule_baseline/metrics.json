@@ -1,0 +1,149 @@
+{
+  "accuracy": 91.25235513515591,
+  "macro_f1": 77.12728830963891,
+  "classification_report": {
+    "Others": {
+      "precision": 1.0,
+      "recall": 0.7050910948407969,
+      "f1-score": 0.8270421410025963,
+      "support": 5873.0
+    },
+    "T1016_System_Network_Configuration_Discovery": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 2.0
+    },
+    "T1082_System_Information_Discovery": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 101.0
+    },
+    "T1087_Account_Discovery": {
+      "precision": 0.9972451790633609,
+      "recall": 1.0,
+      "f1-score": 0.9986206896551724,
+      "support": 724.0
+    },
+    "T1166_Seuid_and_Setgid": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 43.0
+    },
+    "T1169_Sudo": {
+      "precision": 0.24104683195592286,
+      "recall": 1.0,
+      "f1-score": 0.38845726970033295,
+      "support": 700.0
+    },
+    "access": {
+      "precision": 0.9943920676202861,
+      "recall": 1.0,
+      "f1-score": 0.9971881494763438,
+      "support": 12235.0
+    },
+    "exec": {
+      "precision": 1.0,
+      "recall": 0.9209985779744035,
+      "f1-score": 0.9588748149366673,
+      "support": 6329.0
+    },
+    "accuracy": 0.9125235513515592,
+    "macro avg": {
+      "precision": 0.7790855098299463,
+      "recall": 0.8282612091019,
+      "f1-score": 0.7712728830963891,
+      "support": 26007.0
+    },
+    "weighted avg": {
+      "precision": 0.9752038004900687,
+      "recall": 0.9125235513515592,
+      "f1-score": 0.931459056207408,
+      "support": 26007.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      4141,
+      0,
+      0,
+      2,
+      0,
+      1704,
+      26,
+      0
+    ],
+    [
+      0,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      101,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      724,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      43,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      700,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      12235,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      500,
+      0,
+      5829
+    ]
+  ]
+}

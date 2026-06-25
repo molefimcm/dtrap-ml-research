@@ -1,0 +1,93 @@
+## Account Related Events
+-w /etc/sudoers -p wa -k T1078_Valid_Accounts
+-w /usr/bin/passwd -p x -k T1078_Valid_Accounts
+-w /usr/sbin/groupadd -p x -k T1078_Valid_Accounts
+-w /usr/sbin/useradd -p x -k T1078_Valid_Accounts
+-w /usr/sbin/usermod -p x -k T1078_Valid_Accounts
+-w /usr/sbin/adduser -p x -k T1078_Valid_Accounts
+
+
+## Privleged Command Execution Related Events
+-a exit,always -F arch=b64 -F euid=0 -S execve -k T1078_Valid_Accounts
+-a exit,always -F arch=b32 -F euid=0 -S execve -k T1078_Valid_Accounts
+-a always,exit -F path=/bin/ping -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/bin/su -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/bin/chgrp -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+
+
+-a always,exit -F path=/sbin/unix_chkpwd -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+
+ts
+-a always,exit -F path=/usr/sbin/groupdel -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/sbin/semanage -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accoun
+-a always,exit -F path=/usr/bin/sudoedit -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/at -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/rsh -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/gpasswd -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+
+-a always,exit -F path=/usr/bin/crontab -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/sudo -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+
+
+-a always,exit -F path=/usr/bin/passwd -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+s
+-a always,exit -F path=/usr/bin/setfacl -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/chacl -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/chcon -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/newgrp -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+-a always,exit -F path=/usr/bin/newrole -F perm=x -F auid>=500 -F auid!=4294967295 -k T1078_Valid_Accounts
+
+
+## Priv Escalation Related Events
+-w /bin/su -p x -k T1169_Sudo
+-w /usr/bin/sudo -p x -k T1169_Sudo
+-w /etc/sudoers -p rw -k T1169_Sudo
+
+
+
+
+## Recon Related Events
+-w /etc/group -p wa -k T1087_Account_Discovery
+-w /etc/passwd -p wa -k TT1087_Account_Discovery
+-w /etc/gshadow -k T1087_Account_Discovery
+-w /etc/shadow -k T1087_Account_Discovery
+
+-w /usr/bin/whoami -p x -k T1033_System_Owner_User_Discovery
+-w /etc/hostname -p r -k T1082_System_Information_Discovery
+-w /etc/login.defs -p wa -k T1082_System_Information_Discovery
+-w /etc/resolv.conf -k T1016_System_Network_Configuration_Discovery
+
+-w /var/log/faillog -p wa -k T1082_System_Information_Discovery
+-w /var/log/lastlog -p wa -k T1082_System_Information_Discovery
+-w /var/log/tallylog -p wa -k T1082_System_Information_Discovery
+-w /usr/sbin/tcpdump -p x -k T1049_System_Network_Connections_discovery
+-w /usr/sbin/traceroute -p x -k T1049_System_Network_Connections_discovery
+
+
+-w /usr/bin/grep -p x -k T1081_Credentials_In_Files
+-w /usr/bin/egrep -p x -k T1081_Credentials_In_Files
+-w /usr/bin/ps -p x -k T1057_Process_Discovery
+
+
+
+
+
+## Remote Access Related Events
+-w /usr/bin/wget -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/curl -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/base64 -p x -k T1219_Remote_Access_Tools
+-w /bin/nc -p x -k T1219_Remote_Access_Tools
+-w /bin/netcat -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/ncat -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/ssh -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/socat -p x -k T1219_Remote_Access_Tools
+-w /usr/bin/rdesktop -p x -k T1219_Remote_Access_Tools
+
+
+# DPKG / APT-GET (Debian/Ubuntu)
+-w /usr/bin/dpkg -p x -k T1072_third_party_software
+-w /usr/bin/apt-add-repository -p x -k T1072_third_party_software
+-w /usr/bin/apt-get -p x -k T1072_third_party_software
+
+#Remote File Copy
+-w /usr/bin/ftp -p x -k T1105_remote_file_copy
