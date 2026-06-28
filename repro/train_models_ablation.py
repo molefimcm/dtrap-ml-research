@@ -24,9 +24,19 @@ conservative, behaviourally-grounded result set alongside Protocol A.
 """
 import json
 import os
+import random
+
+os.environ['PYTHONHASHSEED'] = '0'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+
+SEED = 42
+random.seed(SEED)
 
 import numpy as np
 import pandas as pd
+
+np.random.seed(SEED)
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import (accuracy_score, f1_score, classification_report,
@@ -95,7 +105,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-tf.random.set_seed(42)
+tf.keras.utils.set_random_seed(SEED)
 
 dnn = keras.Sequential([
     layers.Input(shape=(X_train.shape[1],)),

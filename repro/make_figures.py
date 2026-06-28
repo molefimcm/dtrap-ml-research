@@ -13,6 +13,10 @@ Produces (in repro/figures/):
                                 for all 4 Protocol-A models
   - cv_boxplot.png           : boxplot of repeated-CV macro-F1 (RF, GB) -
                                 only produced if results_cv/cv_metrics.json exists
+  - model_comparison.png     : accuracy/macro-F1 bar chart for all 4 Protocol-A
+                                models plus the rule-based baseline - only
+                                produced if results_rule_baseline/metrics.json
+                                exists
 """
 import json
 import os
@@ -297,7 +301,7 @@ if os.path.exists(cv_path):
         cv = json.load(f)
     fig, ax = plt.subplots(figsize=(6, 5))
     data = [cv[name]['macro_f1_folds'] for name in cv]
-    ax.boxplot(data, labels=list(cv.keys()))
+    ax.boxplot(data, tick_labels=list(cv.keys()))
     ax.set_ylabel('Macro-F1 (%)')
     ax.set_title('Repeated stratified 5-fold CV (3 repeats) - macro-F1')
     plt.tight_layout()
@@ -306,5 +310,41 @@ if os.path.exists(cv_path):
     print('Wrote cv_boxplot.png')
 else:
     print(f'Skipping CV boxplot - {cv_path} not found yet')
+
+# ---------------------------------------------------------------------------
+# 5. Model comparison bar chart (Protocol A + rule baseline)
+# ---------------------------------------------------------------------------
+RULE_DIR = 'results_rule_baseline'
+rule_path = os.path.join(RULE_DIR, 'metrics.json')
+if os.path.exists(rule_path):
+    with open(rule_path) as f:
+        rule_metrics = json.load(f)
+    model_order = ['RandomForest', 'GradientBoosting', 'SVM', 'DNN']
+    display_names = ['Random Forest', 'Gradient Boosting', 'Linear SVM', 'DNN', 'Rule-based\nbaseline']
+    accs = [metrics[m]['accuracy'] for m in model_order] + [rule_metrics['accuracy']]
+    f1s = [metrics[m]['macro_f1'] for m in model_order] + [rule_metrics['macro_f1']]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(len(display_names))
+    width = 0.35
+    bars1 = ax.bar(x - width / 2, accs, width, label='Accuracy')
+    bars2 = ax.bar(x + width / 2, f1s, width, label='Macro-F1')
+    for bars in (bars1, bars2):
+        for b in bars:
+            ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1,
+                     f'{b.get_height():.2f}', ha='center', va='bottom', rotation=90, fontsize=8)
+    ax.set_xticks(x)
+    ax.set_xticklabels(display_names)
+    ax.set_ylabel('Percent')
+    ax.set_ylim(0, 110)
+    ax.set_title('Figure 9: Model Comparison - Test Accuracy and Macro-F1\n'
+                 '(Held-out test set, time-based split; Protocol A, 57 features)')
+    ax.legend(loc='lower right')
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIG_DIR, 'model_comparison.png'), dpi=200)
+    plt.close(fig)
+    print('Wrote model_comparison.png')
+else:
+    print(f'Skipping model_comparison.png - {rule_path} not found yet')
 
 print('Figures written to', FIG_DIR)

@@ -28,9 +28,11 @@ removed from this file (string-replaced with generic placeholders across all
 39 affected columns) before publication. `redact_pii.py` documents exactly
 how, and `REPRO_NOTES.md` §8 confirms this redaction does not change any
 reported metric for the three deterministic classical models or the
-rule-based baseline; the DNN's small run-to-run variance is the same kind of
-unseeded stochastic noise it already shows between any two runs, not an
-effect of the redaction.
+rule-based baseline. That comparison predates the reproducibility fix in
+§9.1 (the DNN was unseeded at the time and showed run-to-run noise
+unrelated to redaction); the DNN is now fully deterministic, and the
+redaction comparison should be re-run against the seeded scripts if it needs
+to be cited again.
 
 ## Setup
 
@@ -66,16 +68,29 @@ numbers without re-running anything.
 
 ## Headline results (Protocol A, time-based 70/30 split, n=26,007 test events)
 
+These numbers are now fully deterministic: every script (`build_features.py`,
+`train_models.py`, `train_models_ablation.py`) seeds NumPy, Python's `random`,
+and TensorFlow/Keras (`tf.keras.utils.set_random_seed`), and pins
+`TF_DETERMINISTIC_OPS`/`TF_CUDNN_DETERMINISTIC`. Re-running the pipeline from
+a clean checkout reproduces every value below bit-for-bit (verified by
+running each script twice and diffing the saved `metrics.json`).
+
 | Model | Accuracy | Macro-F1 |
 |---|---|---|
 | Random Forest | 99.98% | 99.99% |
 | Gradient Boosting | 98.82% | 72.61% |
 | Linear SVM | 97.13% | 74.62% |
-| DNN | 96.10% | 61.05% |
+| DNN | 96.75% | 73.66% |
 | Rule-based baseline | 91.25% | 77.13% |
 
 See `REPRO_NOTES.md` for Protocol B (run-identifier ablation), the
-cross-validation variance check, and full methodology.
+cross-validation variance check, and full methodology. Note: an earlier
+version of this study reported a DNN-specific "run-identifier shortcut"
+effect (Protocol A macro-F1 61.05% -> Protocol B 80.12%) based on a single
+unseeded run pair. With seeding fixed, the deterministic result is Protocol A
+73.66% -> Protocol B 72.58% (a -1.08 point change) - i.e. no shortcut effect.
+`REPRO_NOTES.md` §9.1 has the full account, including a 5-seed variance check
+that was run before the fix to confirm the original finding was noise.
 
 ## Repository layout
 

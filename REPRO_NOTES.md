@@ -223,7 +223,12 @@ Single consistent run, `repro/train_models.py`, results in
 | Linear SVM | 97.13% | 74.62% |
 | Random Forest (100 trees) | 99.98% | 99.99% |
 | Gradient Boosting (100 trees) | 98.82% | 72.61% |
-| DNN (fixed architecture, 20 epochs) | 96.10% | 61.05% |
+| DNN (fixed architecture, 20 epochs) | 96.75% | 73.66% |
+
+These are the deterministic, reproducible numbers as of the seeding fix in
+§9.1 below. (An earlier unseeded run of this exact script reported DNN
+96.10%/61.05% for the same architecture — that run is superseded; rerunning
+`train_models.py` now always reproduces 96.75%/73.66%.)
 
 Per-class precision/recall/F1 (full classification reports and confusion
 matrices in `repro/results/`):
@@ -235,8 +240,8 @@ matrices in `repro/results/`):
   T1166 (43 test rows) and T1016 (2 test rows) — see §6, this is suspicious.
 - **Gradient Boosting**: perfect on Others/T1087/T1166/access/exec, **0.00 on
   T1016 and T1082**, and only 0.71 recall on T1169.
-- **DNN**: near-perfect on Others/T1016/access/exec, 0.91 F1 on T1087, but
-  **0.00 on T1166 and T1169** and essentially 0 recall (0.01) on T1082.
+- **DNN**: perfect F1 on Others/T1016/T1082/exec, 0.93 on T1087, 0.97 on
+  access, but **0.00 F1 on T1166 and T1169** (both collapse entirely).
 
 **Headline finding so far:** under one consistent, leakage-fixed protocol,
 results are *not* a tight cluster (contrary to v7's narrative of "four of
@@ -273,33 +278,50 @@ train-only-fit transformers.
 `repro/train_models_ablation.py` drops these 5 columns (52 features
 remaining) and re-trains all four models under the same time-based split.
 
-### 6.1 Protocol B results
+### 6.1 Protocol B results (final, deterministic)
 
 | Model | Accuracy | Macro-F1 | Δ macro-F1 vs Protocol A |
 |---|---|---|---|
 | Linear SVM | 97.13% | 74.62% | +0.00 |
 | Random Forest | 99.98% | 99.96% | −0.03 |
 | Gradient Boosting | 98.82% | 72.61% | +0.00 |
-| DNN | 98.48% | **80.12%** | **+19.07** |
+| DNN | 98.97% | 72.58% | **−1.08** |
 
-**Interpretation (honest, not the leakage story I expected):** dropping the
-5 run/session-identifier columns leaves SVM, Random Forest, and Gradient
-Boosting **essentially unchanged** (all within 0.03 points). Random Forest
-remains at 99.98% accuracy / 99.96% macro-F1 with near-perfect per-class
-scores, including on T1166 (43 test rows) and T1016 (2 test rows). So the
-identifier-leakage hypothesis in §6 is **not the primary explanation** for
-RF's near-perfect score — that hypothesis is recorded here because it was a
-reasonable thing to check and the check is part of the evidence trail, but it
-did not pan out as expected, and the result must be reported as such rather
-than silently dropped.
+**Interpretation:** dropping the 5 run/session-identifier columns leaves all
+four models **essentially unchanged** (within ~1 point each, including the
+DNN). Random Forest remains at 99.98% accuracy / 99.96% macro-F1 with
+near-perfect per-class scores, including on T1166 (43 test rows) and T1016 (2
+test rows). The identifier-leakage hypothesis in §6 is **not the explanation**
+for RF's near-perfect score, and (see below) it is also not the explanation
+for the DNN's behaviour. Per-class precision/recall in `results_ablation/`.
 
-The one model that *did* change substantially is the **DNN**, whose macro-F1
-rose from 61.05% (Protocol A) to **80.12%** (Protocol B) — driven mainly by
-T1082 (F1 0.02 → 0.68) and T1169 (F1 0.00 → 0.82). T1166 remains at 0.00 F1 in
-both protocols. This suggests the DNN, specifically, was using the
-run/session-identifier columns as a shortcut in Protocol A, and performs
-better — though still far behind the ensembles — once forced to rely on
-behavioural features.
+**Provenance note — this superseded an incorrect earlier finding.** An
+initial unseeded run of `train_models.py`/`train_models_ablation.py`
+reported DNN macro-F1 rising from 61.05% (Protocol A) to 80.12% (Protocol B,
+a "+19.07" change), which was read as evidence the DNN was exploiting the
+run/session-identifier columns as a shortcut. Both training scripts only
+called `tf.random.set_seed(42)`, leaving NumPy/Python RNG, TF op-level
+determinism, and Keras's internal `validation_split`/`Dropout` shuffling
+unpinned. A 5-seed variance check (`repro/dnn_seed_variance.py`, the script
+that exposed this) showed DNN macro-F1 ranging 57.29%-85.10% under Protocol A
+alone and 33.60%-82.68% under Protocol B alone — a spread far larger than the
+claimed effect, with a mean delta of **-11.34 points** (opposite sign from
+the original "+19.07"). This proved the original single-run comparison was a
+noise draw.
+
+**Fix applied:** `train_models.py` and `train_models_ablation.py` now seed
+NumPy (`np.random.seed`), Python's `random`, `PYTHONHASHSEED`, and Keras
+(`tf.keras.utils.set_random_seed`), and set `TF_DETERMINISTIC_OPS=1` /
+`TF_CUDNN_DETERMINISTIC=1` before importing TensorFlow. Verified
+deterministic: each script was run twice from a clean `build_features.py`
+output and the resulting `metrics.json` accuracy/macro-F1 were bit-identical
+across runs for all four models, including the DNN, under both Protocol A and
+Protocol B. The DNN figures above (Protocol A 96.75%/73.66%, Protocol B
+98.97%/72.58%) are the resulting canonical, reproducible numbers — anyone
+re-running this repository's scripts will get exactly these values. There is
+no statistically supported run/session-identifier shortcut effect; this
+replaces the shortcut-learning narrative throughout the manuscript (abstract,
+§4.1, §4.3, Table 5, §5.2, §6, §6.1) — see §9.1 for exact replacement text.
 
 The most defensible reading of RF's persistently near-perfect score is the
 **controlled-simulation effect that v7 itself already names** (§3.3/§5.1):
@@ -359,7 +381,7 @@ failure modes that a combined rule+ML approach could address.
 | Session-based GroupShuffleSplit, 70/10/20 (688/97/200 sessions) on `session_id` | No `session_id` column at that granularity exists; replaced with time-based 70/30 chronological split (60,682/26,007 events) |
 | Final feature matrix: 32 features across 58,998 events | 57 features across 86,689 events (60,682 train / 26,007 test) |
 | "246-hour equivalent" collection window | ~17 days (2022-01-26 to 2022-02-12), highly non-uniform; most MITRE-labelled activity on 2022-01-27/28 |
-| Table 6: RF 99.4%/98.0%, GB 99.4%/98.0%, DT 99.3%/97.8%, SVM 94.0%/91.7%, DNN 98.4%/96.0% | Protocol A: SVM 97.1%/74.6%, RF 99.98%/99.99% (likely identifier leakage, see §6), GB 98.8%/72.6%, DNN 96.1%/61.1%. No Decision Tree was run (not in original notebooks' final model set) |
+| Table 6: RF 99.4%/98.0%, GB 99.4%/98.0%, DT 99.3%/97.8%, SVM 94.0%/91.7%, DNN 98.4%/96.0% | Protocol A: SVM 97.1%/74.6%, RF 99.98%/99.99% (controlled-simulation effect, not identifier leakage, see §6), GB 98.8%/72.6%, DNN 96.75%/73.66% (deterministic, §9.1). No Decision Tree was run (not in original notebooks' final model set) |
 | Table 5 (DNN 9-config hyperparameter search, 88–98.8% val. acc.) | No evidence in the notebooks of a 9-configuration DNN search; the original DNN code was structurally broken (loss=0) and produced 36.7–59.7% accuracy |
 | Table 4 (8-step feature pipeline, "4 columns removed: user_group_id, user_fs_id, exit_success, ppid_bracket") | Real correlation filter removes 47 columns (full list in `repro/artifacts/meta.json`), not 4 |
 | §4.5 Dataset-size sensitivity analysis (10 sizes, 5k–300k events) | Not run; no code in the repo implements this. To be addressed in Phase 3/4 — either run a reduced version or remove this section and document as not performed |
@@ -477,6 +499,120 @@ failure modes that a combined rule+ML approach could address.
 - This `REPRO_NOTES.md` - full provenance record for every number in v8.
 - Public code/data repository: https://github.com/molefimcm/dtrap-ml-research
   (redacted dataset, all repro scripts, saved results and figures).
+
+## 9.1 DNN claim correction and reproducibility fix (this session)
+
+Independent verification of the public repository found that the
+manuscript's DNN identifier-shortcut claim (Table 5, §4.1, §4.3, and
+references to it in the abstract, §5.2, §6, §6.1) is **not statistically
+supported**, and that the underlying scripts were not reproducible (DNN
+results varied run-to-run because RNGs were only partially seeded). Both
+issues are now fixed:
+
+1. **Reproducibility**: `train_models.py` and `train_models_ablation.py`
+   now seed NumPy, Python's `random`, `PYTHONHASHSEED`, and Keras
+   (`tf.keras.utils.set_random_seed`), and set `TF_DETERMINISTIC_OPS=1` /
+   `TF_CUDNN_DETERMINISTIC=1`. Verified by running each script twice from a
+   clean `build_features.py` output: accuracy and macro-F1 for all four
+   models (including the DNN) are bit-identical across runs, for both
+   Protocol A and Protocol B. Anyone who clones this repository and runs the
+   commands in `README.md` will now get exactly the numbers below, every
+   time.
+2. **DNN claim**: with reproducibility fixed, the actual Protocol A → B
+   change is **macro-F1 73.66% → 72.58% (−1.08 points)** — a negligible,
+   slightly negative change, not the "+19.07" originally reported from a
+   single unseeded run. There is no run-identifier shortcut effect for any
+   of the four models. (A 5-seed variance check run *before* the fix,
+   `repro/dnn_seed_variance.py`, independently confirmed the original
+   single-run finding was noise: it found per-protocol std of 12-19 points,
+   far larger than any claimed effect — see §6.1.)
+
+The manuscript text must be revised wherever it asserts the DNN exploits
+run/session-identifier columns, and the DNN numbers throughout must be
+updated from the old unseeded values (96.10%/61.05% Protocol A) to the new
+deterministic values (96.75%/73.66% Protocol A; 98.97%/72.58% Protocol B).
+Exact replacement text for each affected passage:
+
+- **Abstract**: change "...DNN attains 96.10% accuracy and 61.05% macro-F1..."
+  to "...DNN attains 96.75% accuracy and 73.66% macro-F1...". Change "...a
+  transparent account of two data-leakage errors and one run-identifier
+  shortcut identified and rectified..." to "...a transparent account of two
+  data-leakage errors identified and rectified, and a reproducibility fix
+  (full RNG seeding) that corrected an erroneous run-identifier-shortcut
+  finding for the DNN..."
+- **§4.1 heading and body**: keep heading "DNN Architecture Correction and
+  Run-Identifier Ablation (Table 5)". Replace the ablation interpretation
+  paragraph with: "We re-ran all four models (Protocol B) after removing
+  five identifier-type columns... to check whether performance depended on
+  run- or session-identifying columns. All four models are essentially
+  unchanged (Table 5): Random Forest's macro-F1 drops by 0.03 points and the
+  DNN's drops by 1.08 points, both within noise. An earlier draft of this
+  analysis reported a 19.07-point DNN increase from Protocol A to B, based
+  on a single training run of each protocol; this did not replicate once we
+  fixed an unseeded-RNG reproducibility issue in the training scripts (full
+  seeding of NumPy, Python's RNG, and TensorFlow/Keras, plus deterministic
+  op execution) and confirmed the corrected, now-reproducible result with a
+  second independent run of each protocol. There is no evidence any of the
+  four models rely on the run/session-identifier columns."
+- **Table 5**: update to:
+
+  | Model | Protocol A Acc. | Protocol A Macro-F1 | Protocol B Acc. | Protocol B Macro-F1 | Δ Macro-F1 |
+  |---|---|---|---|---|---|
+  | Linear SVM | 97.13 | 74.62 | 97.13 | 74.62 | +0.00 |
+  | Random Forest | 99.98 | 99.99 | 99.98 | 99.96 | −0.03 |
+  | Gradient Boosting | 98.82 | 72.61 | 98.82 | 72.61 | +0.00 |
+  | DNN | 96.75 | 73.66 | 98.97 | 72.58 | −1.08 |
+
+  Add a footnote: "All figures are deterministic and reproducible from a
+  clean checkout (full RNG seeding, see supplementary repository); none of
+  the four models show a meaningful change between protocols."
+- **§4.3**: change the DNN macro-F1 figure from 61.05% to **73.66%**
+  throughout (it is no longer the worst performer — it now scores above
+  Gradient Boosting). Remove "The Protocol B ablation (Table 5) shows that
+  the DNN specifically benefits from removing the five run/session-identifier
+  columns... This suggests the DNN's failure mode in Protocol A is partly a
+  shortcut-learning artifact..." Replace with: "The Protocol B ablation
+  (Table 5) confirms none of the four models, including the DNN, depend on
+  the run/session-identifier columns (all changes within ~1 point)."
+- **Table 6 / §4.2**: update the DNN row from "96.10 / 61.05 / 61.61 / 65.22"
+  to "96.75 / 73.66 / 74.19 / 73.28" (macro precision/recall from
+  `repro/results/metrics.json`'s `DNN.classification_report['macro avg']`).
+  Note the DNN's macro-F1 (73.66%) is now higher than Gradient Boosting's
+  (72.61%) and the rule-based baseline is no longer the unambiguous runner-up
+  on macro-F1.
+- **§5.2 (Research-integrity disclosure)**: remove "...and one
+  shortcut-learning issue (the DNN partly relied on run/session-identifier
+  columns rather than behavioural features, Section 4.1)." Replace with:
+  "...and one reproducibility defect (the DNN training scripts did not fully
+  seed NumPy/Python/TensorFlow RNGs, which had produced an erroneous
+  run-identifier-shortcut finding in an earlier draft; fixed by pinning all
+  RNGs and TensorFlow op determinism, Section 4.1)."
+- **§6 (Conclusion)**: change "...the linear SVM reaches 97.13%/74.62%; and a
+  corrected DNN reaches 96.10%/61.05%..." to "...the linear SVM reaches
+  97.13%/74.62%; and a corrected DNN reaches 96.75%/73.66%...". Change "two
+  label-leakage bugs and one run-identifier shortcut found and corrected" to
+  "two label-leakage bugs and one reproducibility (RNG-seeding) defect found
+  and corrected, the latter of which had produced an erroneous
+  run-identifier-shortcut finding in an earlier draft".
+- **§6.1 (Recommendations, "Leakage and shortcut auditing")**: change "This
+  revision found and corrected two label-leakage bugs and one run-identifier
+  shortcut" to "This revision found and corrected two label-leakage bugs and
+  one RNG-seeding/reproducibility defect (which had produced a false
+  run-identifier-shortcut finding for the DNN)". Update recommendation (c)
+  from "whether performance survives removal of run- or session-identifying
+  columns" to add: "...and verify any such finding survives full RNG seeding
+  and a repeated run before reporting it — this revision's own earlier draft
+  did not."
+
+**Status: applied.** All of the above replacements were applied to the
+manuscript (Revision V03.02), and the corresponding figures
+(`model_comparison.png`, `confmat_DNN.png`, `confmat_DNN_ablation.png`,
+`per_class_prf.png`, `cv_boxplot.png`) were regenerated against the
+deterministic numbers above. `model_comparison.png` had been a hand-built
+artifact not covered by `make_figures.py` and still showed the old DNN
+61.05% figure; `make_figures.py` now generates it directly from
+`results/metrics.json` and `results_rule_baseline/metrics.json` so it can
+never drift out of sync with the saved metrics again.
 
 ## 10. Known remaining gaps (disclosed honestly in the manuscript itself)
 
